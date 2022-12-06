@@ -1,0 +1,89 @@
+%scala
+val containerName = "excelfiles"
+val storageAccountName = "strgeaus01"
+val key = "yRxlRErviyBLSVr5Zd/5htj5NWc3qwfk3fNQyuWQOPCH1XPJab6fbefV2Y56FBCsnAlTe7a2M61m+AStgNWeDQ=="
+
+val url = "wasbs://" + containerName + "@"  + storageAccountName + ".blob.core.windows.net/"
+val config = "fs.azure.account.key." + storageAccountName + ".blob.core.windows.net"
+
+dbutils.fs.mount(
+   source = url,
+   mountPoint = "/mnt/myblob",
+   extraConfigs = Map(config -> key))
+   
+   
+%scala
+val containerName = "excelfiles"
+val storageAccountName = "strgeaus01"
+val key = "yRxlRErviyBLSVr5Zd/5htj5NWc3qwfk3fNQyuWQOPCH1XPJab6fbefV2Y56FBCsnAlTe7a2M61m+AStgNWeDQ=="
+
+val url = "wasbs://" + containerName + "@"  + storageAccountName + ".blob.core.windows.net/"
+val config = "fs.azure.account.key." + storageAccountName + ".blob.core.windows.net"
+
+dbutils.fs.mount(
+   source = url,
+   mountPoint = "/mnt/myblob",
+   extraConfigs = Map(config -> key))
+   
+   
+  %scala
+
+val df = spark.read
+.format("com.crealytics.spark.excel")
+.option("header", true)
+.load("/mnt/myblob/data.xlsx")
+
+display(df)
+
+
+%scala
+val df = spark.read
+.format("com.crealytics.spark.excel")
+.option("dataAddress", "Persons[#All]")
+.option("header", true)
+.load("/mnt/myblob/data.xlsx")
+
+display(df)
+
+%scala
+import com.crealytics.spark.excel.WorkbookReader
+
+
+val sheetNames = WorkbookReader(
+Map("path" -> "/mnt/myblob/data.xlsx"),
+spark.sparkContext.hadoopConfiguration
+).sheetNames
+
+sheetNames.foreach { item =>
+
+  var data = spark.read
+  .format("com.crealytics.spark.excel")
+  .option("dataAddress", (item + "!A1"))
+  .option("header", true)
+  .load("/mnt/myblob/data.xlsx")
+  
+  data.repartition(1)
+    .write
+    .format("com.databricks.spark.csv")
+    .mode("overwrite")
+    .option("headers", "true")
+    .save("/mnt/myblob/databricks-output/" + item + ".csv")  
+}
+
+ %scala
+import org.apache.spark.sql.functions._
+
+
+val dfPlanes = spark.read
+  .format("com.crealytics.spark.excel")
+  .option("dataAddress", "Planes!A1")
+  .option("header", "true")
+  .load("/mnt/myblob/data.xlsx")
+
+val aggregated = dfPlanes.groupBy("MAKER").count()
+
+display(aggregated)
+
+display(dbutils.fs.ls("/mnt/myblob/databricks-output"))
+
+
